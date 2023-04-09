@@ -18,10 +18,16 @@ class StripAnimation : public Animation
 public:
     StripFunc func;
     SubStrip *strip;
-    StripAnimation(StripFunc func, SubStrip *strip) : func(func), strip(strip) {}
+    StripAnimation(StripFunc func, SubStrip *strip, TimeInterval duration = 1.0, bool repeats = false) 
+      : Animation(duration, repeats), func(func), strip(strip) {}
 protected:
     void animate(float absoluteTime) { func(this, strip, absoluteTime); }
 };
+
+float frand(void)
+{
+  return random(1000)/1000.0;
+}
 
 float curve(float progress)
 {
@@ -36,23 +42,39 @@ void DawnAnim(Animation *self, SubStrip *strip, float t)
     }
 }
 
-StripAnimation lclouds(DawnAnim, &left);
-StripAnimation rclouds(DawnAnim, &right);
+
+StripAnimation lclouds(DawnAnim, &left, 8.0, true);
+StripAnimation rclouds(DawnAnim, &right, 6.0, true);
+
+void LightningAnim(Animation *self, SubStrip *strip, float t)
+{
+
+    strip->fill(CRGB::Black);
+    if(t == 1.0) return;
+    
+    for(int i = 0; i < strip->numPixels(); i++)
+    {
+        (*strip)[i] = CRGB::Blue * t;
+    }
+}
+
+
+StripAnimation lthun(LightningAnim, &left, 1.5);
+StripAnimation rthun(LightningAnim, &right, 1.5);
+static const int thuns_count = 2;
+StripAnimation thuns[] = {lthun, rthun};
+
 
 void setup() {
     M5.begin();
     FastLED.addLeds<WS2811, G26, GRB>(lstrip, lstrip_count);
     FastLED.addLeds<WS2811, G32, GRB>(rstrip, rstrip_count);
-    FastLED.setBrightness(50);
+    FastLED.setBrightness(255);
     left.fill(CRGB::Black);
     right.fill(CRGB::Black);
     FastLED.show();
 
-    lclouds.duration = 8.0;
-    lclouds.repeats = true;
     ansys.addAnimation(&lclouds);
-    rclouds.duration = 6.0;
-    rclouds.repeats = true;
     ansys.addAnimation(&rclouds);
 }
 
@@ -76,5 +98,12 @@ void loop() {
 
 void update()
 {
-    
+    for(int i = 0; i < thuns_count; i++)
+    {
+        StripAnimation *thun = &thuns[i];
+        if((thun->beginTime + thun->duration) < ansys.now()) {
+            thun->beginTime = ansys.now() + 2 + frand()*10.0;
+            ansys.addAnimation(thun);
+        }
+    }
 }
