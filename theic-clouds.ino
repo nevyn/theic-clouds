@@ -1,14 +1,27 @@
-#include <M5Unified.h>
+#include "M5Unified.h"
 #include "FastLED.h"
 #include <OverAnimate.h>
 #include <SubStrip.h>
 
+enum RunMode
+{
+    Off = 0,
+    Dawn = 1,
+    Lightning = 2,
+
+    RunModeCount
+} runMode;
+
 static const int lstrip_count = 80;
 CRGB lstrip[lstrip_count];
 SubStrip left(lstrip, lstrip_count);
+
 static const int rstrip_count = 80;
 CRGB rstrip[rstrip_count];
 SubStrip right(rstrip, rstrip_count);
+
+CRGB btnled[1];
+SubStrip buttonled(btnled, 1);
 
 AnimationSystem ansys;
 
@@ -69,13 +82,15 @@ void setup() {
     M5.begin();
     FastLED.addLeds<WS2811, G26, GRB>(lstrip, lstrip_count);
     FastLED.addLeds<WS2811, G32, GRB>(rstrip, rstrip_count);
-    FastLED.setBrightness(255);
+    FastLED.addLeds<WS2811, G27, GRB>(btnled, 1);
     left.fill(CRGB::Black);
     right.fill(CRGB::Black);
     FastLED.show();
 
     ansys.addAnimation(&lclouds);
     ansys.addAnimation(&rclouds);
+
+    setMode(Dawn);
 }
 
 unsigned long lastMillis;
@@ -96,7 +111,32 @@ void loop() {
     FastLED.show();
 }
 
+void setMode(RunMode newMode)
+{
+    runMode = newMode;
+    Serial.print("New mode: ");
+    Serial.println(runMode);
+    buttonled.fill(runMode==0 ? CRGB::Black : runMode==1 ? CRGB::Red : CRGB::Green);
+
+    if(runMode == Off) {
+        FastLED.setBrightness(0);
+    } else {
+        FastLED.setBrightness(255);
+    }
+}
+
 void update()
+{
+    if(M5.BtnA.wasPressed())
+    {
+        setMode((RunMode)((runMode + 1) % RunModeCount));
+    }
+    
+    if(runMode >= Lightning)
+      updateLightning();
+}
+
+void updateLightning()
 {
     for(int i = 0; i < thuns_count; i++)
     {
